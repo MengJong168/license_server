@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<h2>License Dashboard</h2>
+
+<form method="post" action="/add">
+<input name="license" placeholder="License Key" required>
+<input name="expiry" placeholder="YYYY-MM-DD">
+<button>Add</button>
+</form>
+
+<table>
+<tr><th>ID</th><th>License</th><th>MAC</th><th>Expiry</th><th>Action</th></tr>
+{% for l in licenses %}
+<tr>
+<td>{{l[0]}}</td>
+<td>{{l[1]}}</td>
+<td>{{l[2]}}</td>
+<td>{{l[3]}}</td>
+<td><a href="/delete/{{l[0]}}">❌</a></td>
+</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>
