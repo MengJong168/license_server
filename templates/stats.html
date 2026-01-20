@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stats</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h2>📈 Stats</h2>
+    <div class="toplinks">
+      <a class="linkbtn" href="/dashboard">⬅ Back</a>
+      <a class="logout" href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="k">TOTAL</div><div class="v">{{counts["TOTAL"]}}</div></div>
+    <div class="card"><div class="k">OK</div><div class="v">{{counts["OK"]}}</div></div>
+    <div class="card"><div class="k">USED</div><div class="v">{{counts["USED"]}}</div></div>
+    <div class="card"><div class="k">NOT_STARTED</div><div class="v">{{counts["NOT_STARTED"]}}</div></div>
+    <div class="card"><div class="k">EXPIRED</div><div class="v">{{counts["EXPIRED"]}}</div></div>
+    <div class="card"><div class="k">INVALID_DATES</div><div class="v">{{counts["INVALID_DATES"]}}</div></div>
+  </div>
+
+  <h3 style="margin-top:18px; color:#cbd5e1;">Last 30 days activity (verify calls)</h3>
+  <table>
+    <tr><th>Date</th><th>Requests</th></tr>
+    {% for d, n in per_day %}
+    <tr><td class="mono">{{d}}</td><td>{{n}}</td></tr>
+    {% endfor %}
+  </table>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verify Logs</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h2>📊 Verify Logs</h2>
+    <div class="toplinks">
+      <a class="linkbtn" href="/dashboard">⬅ Back</a>
+      <a class="logout" href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>License</th>
+      <th>MAC</th>
+      <th>Status</th>
+      <th>IP</th>
+      <th>Time</th>
+    </tr>
+
+    {% for r in logs %}
+    <tr>
+      <td>{{r[0]}}</td>
+      <td class="mono">{{r[1]}}</td>
+      <td class="mono">{{r[2]}}</td>
+      <td>
+        <span class="badge
+          {% if r[3] == 'OK' %}b-ok{% endif %}
+          {% if r[3] == 'USED' %}b-used{% endif %}
+          {% if r[3] == 'EXPIRED' %}b-expired{% endif %}
+          {% if r[3] == 'INVALID' %}b-invalid{% endif %}
+        ">{{r[3]}}</span>
+      </td>
+      <td class="mono">{{r[4]}}</td>
+      <td>{{r[5]}}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+</div>
+
+</body>
+</html>
