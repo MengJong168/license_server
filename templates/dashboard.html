@@ -1,30 +1,132 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="/static/style.css">
+  <title>License Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<h2>License Dashboard</h2>
+<div class="container">
 
-<form method="post" action="/add">
-<input name="license" placeholder="License Key" required>
-<input name="expiry" placeholder="YYYY-MM-DD">
-<button>Add</button>
-</form>
+  <div class="header">
+    <h2>📊 License Dashboard</h2>
 
-<table>
-<tr><th>ID</th><th>License</th><th>MAC</th><th>Expiry</th><th>Action</th></tr>
-{% for l in licenses %}
-<tr>
-<td>{{l[0]}}</td>
-<td>{{l[1]}}</td>
-<td>{{l[2]}}</td>
-<td>{{l[3]}}</td>
-<td><a href="/delete/{{l[0]}}">❌</a></td>
-</tr>
-{% endfor %}
-</table>
+    <div class="toplinks">
+      <a class="linkbtn" href="/stats">📈 Stats</a>
+      <a class="linkbtn" href="/logs">📊 Logs</a>
+      <a class="linkbtn" href="/export.csv">📁 Export CSV</a>
+      <a class="logout" href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <!-- SEARCH + FILTERS -->
+  <form class="filterbar" method="get" action="/dashboard">
+    <input name="q" placeholder="Search license / HWID / App..." value="{{q or ''}}">
+
+    <select name="status">
+      <option value="">All status</option>
+      {% for s in ["OK","USED","EXPIRED","NOT_STARTED","INVALID_DATES"] %}
+      <option value="{{s}}" {% if status==s %}selected{% endif %}>{{s}}</option>
+      {% endfor %}
+    </select>
+
+    <input name="start_from" placeholder="Start from (YYYY-MM-DD)" value="{{start_from or ''}}">
+    <input name="start_to" placeholder="Start to (YYYY-MM-DD)" value="{{start_to or ''}}">
+    <input name="exp_from" placeholder="Expiry from (YYYY-MM-DD)" value="{{exp_from or ''}}">
+    <input name="exp_to" placeholder="Expiry to (YYYY-MM-DD)" value="{{exp_to or ''}}">
+
+    <button type="submit">Filter</button>
+    <a class="linkbtn" href="/dashboard">Reset</a>
+  </form>
+
+  <div class="forms">
+    <!-- ADD LICENSE -->
+    <form method="post" action="/add">
+      <h4>Add License</h4>
+      <input name="license" placeholder="License Key" required>
+      <input name="start" placeholder="YYYY-MM-DD Start">
+      <input name="expiry" placeholder="YYYY-MM-DD Expiry">
+      <button type="submit">Add</button>
+    </form>
+
+    <!-- AUTO GENERATE -->
+    <form method="post" action="/generate">
+      <h4>Auto Generate</h4>
+      <input name="start" placeholder="YYYY-MM-DD Start (optional)">
+      <input name="expiry" placeholder="YYYY-MM-DD Expiry (optional)">
+      <input name="count" type="number" min="1" max="500" value="1">
+      <button class="generate" type="submit">Generate</button>
+    </form>
+  </div>
+
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>License</th>
+      <th>HWID</th>
+      <th>Start</th>
+      <th>Expiry</th>
+      <th>App</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+
+    {% for l in licenses %}
+    {% set st = l[6] %}
+    <tr class="{% if st=='EXPIRED' %}row-expired{% endif %}">
+      <td>{{l[0]}}</td>
+      <td class="mono">{{l[1]}}</td>
+      <td class="mono">{{l[2] or "-"}}</td>
+      <td>{{l[3] or "-"}}</td>
+      <td>{{l[4] or "-"}}</td>
+      <td class="mono">{{l[5] or "-"}}</td>
+
+      <td>
+        <span class="badge
+          {% if st == 'OK' %}b-ok{% endif %}
+          {% if st == 'USED' %}b-used{% endif %}
+          {% if st == 'EXPIRED' %}b-expired{% endif %}
+          {% if st == 'NOT_STARTED' %}b-wait{% endif %}
+          {% if st == 'INVALID_DATES' %}b-invalid{% endif %}
+        ">{{st}}</span>
+      </td>
+
+      <td class="action">
+        <a class="btn-mini danger" href="/delete/{{l[0]}}" title="Delete">❌</a>
+        <a class="btn-mini warn" href="/reset/{{l[0]}}" title="Reset HWID">🔄</a>
+
+        <!-- Reset App lock (allow key to be used in a different app again) -->
+        <a class="btn-mini purple" href="/reset_app/{{l[0]}}" title="Reset App">🧩</a>
+
+        <!-- Extend Expiry -->
+        <form method="post" action="/extend/{{l[0]}}" class="inlineform" onsubmit="return setExpiry(this)">
+          <input type="hidden" name="expiry" value="">
+          <button type="submit" class="btn-mini info" title="Extend Expiry">🗓️</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+</div>
+
+<script>
+function setExpiry(form){
+  // Expiry column is 5th td in this table layout
+  const expiryCell = form.closest("tr").querySelector("td:nth-child(5)");
+  const current = (expiryCell ? expiryCell.innerText.trim() : "");
+  const val = prompt("Enter new Expiry (YYYY-MM-DD). Leave empty to remove expiry:", current === "-" ? "" : current);
+  if(val === null) return false;
+
+  if(val && !/^\d{4}-\d{2}-\d{2}$/.test(val)){
+    alert("Invalid format. Use YYYY-MM-DD");
+    return false;
+  }
+
+  form.querySelector("input[name='expiry']").value = val;
+  return true;
+}
+</script>
 
 </body>
 </html>
