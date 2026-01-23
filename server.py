@@ -5,9 +5,15 @@ import random
 import csv
 import io
 from collections import defaultdict
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 app.secret_key = "SUPER_SECRET_KEY"  # change in production
+
+PHNOM_PENH_TZ = ZoneInfo("Asia/Phnom_Penh")
+
+def now_pp_date():
+    return datetime.now(PHNOM_PENH_TZ).date()
 
 DB = "database.db"
 
@@ -18,7 +24,7 @@ def db():
 
 # ===================== INIT DB =====================
 with db() as con:
-    # Main license table: lock to app_id + bind to hwid
+    # Main license table: lock to app_id + bind to hwid + rollback protection
     con.execute("""
     CREATE TABLE IF NOT EXISTS licenses (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,12 +32,13 @@ with db() as con:
         hwid TEXT,
         app_id TEXT,
         start TEXT,
-        expiry TEXT
+        expiry TEXT,
+        last_seen TEXT
     )
     """)
 
     # Best-effort upgrades for older DBs
-    for col in ["hwid", "app_id", "start", "expiry"]:
+    for col in ["hwid", "app_id", "start", "expiry", "last_seen"]:
         try:
             con.execute(f"ALTER TABLE licenses ADD COLUMN {col} TEXT")
         except Exception:
@@ -48,7 +55,7 @@ with db() as con:
     except Exception:
         pass
 
-    # Logs table (now includes app_id)
+    # Logs table (keep last_seen OUT of logs; logs are event history)
     con.execute("""
     CREATE TABLE IF NOT EXISTS verify_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,15 +74,13 @@ with db() as con:
     except Exception:
         pass
 
-
 # ===================== DATE + STATUS HELPERS =====================
 def parse_date(s: str):
     return datetime.strptime(s, "%Y-%m-%d")
 
 
 def today_date():
-    return datetime.now().date()
-
+    return now_pp_date()
 
 def is_invalid_range(start: str, expiry: str) -> bool:
     if not start or not expiry:
@@ -452,7 +457,7 @@ def verify():
 
     con = db()
     row = con.execute(
-        "SELECT hwid, start, expiry, app_id FROM licenses WHERE license=?",
+        "SELECT hwid, start, expiry, app_id, last_seen FROM licenses WHERE license=?",
         (lic,)
     ).fetchone()
 
@@ -464,6 +469,27 @@ def verify():
     start = row[1] or ""
     expiry = row[2] or ""
     saved_app = row[3] or ""
+    last_seen = row[4] or ""
+
+    # ================= ROLLBACK PROTECTION =================
+    # Use Phnom Penh date (server-side). If you don't have now_pp_date(), use today_date().
+    today = now_pp_date()  # <-- define this with ZoneInfo("Asia/Phnom_Penh")
+    today_str = today.strftime("%Y-%m-%d")
+
+    if last_seen:
+        try:
+            last_seen_date = datetime.strptime(last_seen, "%Y-%m-%d").date()
+            if today < last_seen_date:
+                log_verify(lic, hwid, app_id, "TIME_TAMPERED")
+                return jsonify({"status": "time_tampered"})
+        except Exception:
+            # if last_seen is invalid/corrupted, overwrite below
+            pass
+
+    # update last_seen on every verify attempt (blocks going backward next time)
+    con.execute("UPDATE licenses SET last_seen=? WHERE license=?", (today_str, lic))
+    con.commit()
+    # =======================================================
 
     # date rules
     if is_invalid_range(start, expiry):
@@ -497,6 +523,7 @@ def verify():
 
     log_verify(lic, hwid, app_id, "OK")
     return jsonify({"status": "ok"})
+
 
 
 if __name__ == "__main__":
